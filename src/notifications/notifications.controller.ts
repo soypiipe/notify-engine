@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, Param, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, HttpCode, HttpStatus, NotFoundException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { NotificationsService } from './notifications.service';
 import { CreateNotificationDto } from './dto/create-notification.dto';
@@ -24,7 +24,7 @@ export class NotificationsController {
         status: 400,
         description: 'Invalid input',
     })
-    create(@Body() createNotificationDto: CreateNotificationDto): Notification {
+    async create(@Body() createNotificationDto: CreateNotificationDto): Promise<Notification> {
         return this.notificationsService.create(createNotificationDto);
     }
 
@@ -46,12 +46,8 @@ export class NotificationsController {
         status: 404,
         description: 'Notification not found',
     })
-    findOne(@Param('id') id: string): Notification {
-        const notification = this.notificationsService.findOne(id);
-        if (!notification) {
-            throw new Error('Notification not found');
-        }
-        return notification;
+    async findOne(@Param('id') id: string): Promise<Notification> {
+        return this.notificationsService.findOne(id);
     }
 
     @Get()
@@ -62,7 +58,7 @@ export class NotificationsController {
         status: 200,
         type: [Notification],
     })
-    findAll(): Notification[] {
-        return this.notificationsService.findAll();
+    async findAll(): Promise<Notification[]> {
+        return await this.notificationsService.findAll();
     }
 }
