@@ -7,6 +7,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
+import { BullModule } from '@nestjs/bullmq';
 
 @Module({
     imports: [
@@ -26,6 +27,17 @@ import { DataSource } from 'typeorm';
                 database: configService.get<string>('DB_NAME'),
                 entities: [__dirname + '/**/*.entity{.ts,.js}'], // Carga automática de entidades
                 synchronize: configService.get<string>('NODE_ENV') === 'development', // ⚠️ ¡Ojo! Solo usa true en desarrollo. En producción usa migraciones.
+            })
+        }),
+        BullModule.forRootAsync({
+            imports: [ConfigModule],
+            inject: [ConfigService],
+            useFactory: async (configService: ConfigService) => ({
+                connection: {
+                    host: configService.get<string>('REDIS_HOST'),
+                    port: configService.get<number>('REDIS_PORT', 6379),
+                    maxRetriesPerRequest: null,
+                }
             })
         }),
         NotificationsModule,

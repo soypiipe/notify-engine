@@ -1,17 +1,20 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 import { CreateNotificationDto } from './dto/create-notification.dto';
 import { Notification } from './entities/notification.entity';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 @Injectable()
-export class NotificationsService {
+export class NotificationsService{
     private readonly logger = new Logger(NotificationsService.name);
 
     constructor(
         @InjectRepository(Notification)
-        private readonly notificationRepository: Repository<Notification>
+        private readonly notificationRepository: Repository<Notification>,
+        @InjectQueue('notifications') private readonly notificationQueue: Queue
     ){}
 
     async create(createNotificationDto: CreateNotificationDto): Promise<Notification> {
@@ -25,8 +28,19 @@ export class NotificationsService {
 
         const saved = await this.notificationRepository.save(notification);
 
-        this.logger.log(`Notification created: ${saved.id}`);
+        const jobNotification = await this.notificationQueue.add('notification-process', {
+            id: saved.id
+        },{
+            attempts: 3,
+            backoff: {
+                type: 'exponential',
+                delay: 2000,
+            },
+            removeOnFail: false,
+        })
 
+        this.logger.log(`Notification created: ${saved.id}`);
+        this.logger.log(`Job Id: ${jobNotification.id}`)
 
         return saved;
     }
@@ -42,5 +56,9 @@ export class NotificationsService {
 
     async findAll(): Promise<Notification[]> {
         return await this.notificationRepository.find();
+    }
+
+    async updateStatus(id: string, status: 'sent' | 'failed'){
+        await this.notificationRepository.update(id, { status })
     }
 }
