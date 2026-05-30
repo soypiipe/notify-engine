@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -60,5 +60,52 @@ export class NotificationsService{
 
     async updateStatus(id: string, status: 'sent' | 'failed'){
         await this.notificationRepository.update(id, { status })
+    }
+
+    async getDLQJobs() {
+        const dlqJobs = await this.notificationQueue.getFailed();
+
+        const dlqJobsData = dlqJobs.map(job => ({
+            jobId: job.id,
+            notificationId: job.data?.id,
+            recipient: job.data?.recipient,
+            attempts: job.attemptsMade,
+            maxAttempts: job.opts.attempts,
+            failedReason: job.failedReason,
+            createdAt: new Date(job.timestamp),
+        }));
+
+        return {
+            totalFailed: dlqJobs.length,
+            jobs: dlqJobsData,
+        };
+    }
+
+    async retryDLQJob(jobId: string) {
+        const job = await this.notificationQueue.getJob(jobId);
+
+        if (!job) {
+            throw new NotFoundException(`Job with ID ${jobId} does not exist`);
+        }
+
+        const status = await job.getState();
+        if (status !== 'failed') {
+            throw new BadRequestException(
+                `Job ${jobId} cannot be retried because it is in state: ${status}`
+            );
+        }
+
+        const notificationId = job.data?.id;
+
+        await job.retry();
+
+        this.logger.log(`Job ${job.id} retried for notification ${notificationId}`);
+
+        return {
+            success: true,
+            jobId: job.id,
+            notificationId,
+            message: `Job ${job.id} has been re-queued for processing`,
+        };
     }
 }

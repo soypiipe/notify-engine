@@ -37,7 +37,15 @@ import { BullModule } from '@nestjs/bullmq';
                     host: configService.get<string>('REDIS_HOST'),
                     port: configService.get<number>('REDIS_PORT', 6379),
                     maxRetriesPerRequest: null,
-                }
+                },
+                // Configura Dead Letter Queue
+                defaultJobOptions: {
+                    // Configura Dead Letter Queue
+                    backoff: {
+                        type: 'fixed',
+                        delay: 5000,
+                    },
+                },
             })
         }),
         NotificationsModule,

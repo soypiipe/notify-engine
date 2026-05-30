@@ -61,4 +61,20 @@ export class NotificationsController {
     async findAll(): Promise<Notification[]> {
         return await this.notificationsService.findAll();
     }
+
+    @Get('dlq/jobs')
+    @ApiOperation({
+        summary: 'Get jobs in Dead Letter Queue',
+    })
+    async getDLQJobs() {
+        return await this.notificationsService.getDLQJobs();
+    }
+
+    @Post('dlq/:id/retry')
+    @ApiOperation({
+        summary: 'Retry a failed job from DLQ',
+    })
+    async retryDLQJob(@Param('id') jobId: string) {
+        return await this.notificationsService.retryDLQJob(jobId);
+    }
 }
