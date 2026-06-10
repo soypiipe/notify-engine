@@ -7,42 +7,52 @@ import { CreateNotificationDto } from './dto/create-notification.dto';
 import { Notification } from './entities/notification.entity';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
+import { SpanStatusCode, trace } from '@opentelemetry/api';
+import { BullMQQueueAdapter } from 'src/common/queues/bull-mqqueue-adapter';
+
 @Injectable()
 export class NotificationsService{
     private readonly logger = new Logger(NotificationsService.name);
+    private readonly tracer = trace.getTracer('notify-engine');
+
 
     constructor(
         @InjectRepository(Notification)
         private readonly notificationRepository: Repository<Notification>,
-        @InjectQueue('notifications') private readonly notificationQueue: Queue
+        @InjectQueue('notifications') private readonly notificationQueue: Queue,
+        private readonly queue: BullMQQueueAdapter
     ){}
 
     async create(createNotificationDto: CreateNotificationDto): Promise<Notification> {
-        const notification = this.notificationRepository.create({
-            recipient: createNotificationDto.recipient,
-            subject: createNotificationDto.subject,
-            body: createNotificationDto.body,
-            channel: createNotificationDto.channel || 'email',
-            status: 'pending'
-        });
+        const span = this.tracer.startSpan('notification.create');
 
-        const saved = await this.notificationRepository.save(notification);
+        try {
+            const notification = this.notificationRepository.create({
+                recipient: createNotificationDto.recipient,
+                subject: createNotificationDto.subject,
+                body: createNotificationDto.body,
+                channel: createNotificationDto.channel || 'email',
+                status: 'pending'
+            });
 
-        const jobNotification = await this.notificationQueue.add('notification-process', {
-            id: saved.id
-        },{
-            attempts: 3,
-            backoff: {
-                type: 'exponential',
-                delay: 2000,
-            },
-            removeOnFail: false,
-        })
+            const saved = await this.notificationRepository.save(notification);
 
-        this.logger.log(`Notification created: ${saved.id}`);
-        this.logger.log(`Job Id: ${jobNotification.id}`)
+            const jobNotification = await this.queue.add('notification-process', { id: saved.id });
 
-        return saved;
+            this.logger.log(`Notification created: ${saved.id}`);
+            this.logger.log(`Job Id: ${jobNotification.id}`);
+
+            return saved;
+        } catch (error: any) {
+            span.setStatus({
+                code: SpanStatusCode.ERROR,
+                message: error.message,
+            });
+            span.recordException(error);
+            throw error;
+        } finally {
+            span.end();
+        }
     }
 
     async findOne(id: string): Promise<Notification> {

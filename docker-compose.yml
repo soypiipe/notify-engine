@@ -44,14 +44,65 @@ services:
     ports:
       - "6379:6379"
     #volumes:
-    #  - redis_data:/data
+    #   - redis_data:/data
     command: redis-server --save 60 1 --loglevel warning #--requirepass your_secure_password
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
+  
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ../prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+    networks:
+      - monitoring
+      - default
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "4000:3000" # Accederás desde http://localhost:4000
+    volumes:
+      - grafana-data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    restart: unless-stopped
+    networks:
+      - monitoring
+      - default # <-- Conectado a la red default
+  tempo:
+    image: grafana/tempo:latest
+    container_name: tempo
+    command: [ "-config.file=/etc/tempo.yaml" ]
+    volumes:
+      # Usamos la ruta absoluta real para romper el bloqueo de la ruta relativa
+      - /home/pipe/proyectos/portfolio/grafana/tempo.yaml:/etc/tempo.yaml
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+      - "3200:3200"
+    networks:
+      - monitoring
+      - default
 
 volumes:
   postgres_data:
 #  redis_data:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  monitoring:
+    driver: bridge

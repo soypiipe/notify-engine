@@ -3,6 +3,24 @@ import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 
+import { NodeSDK } from '@opentelemetry/sdk-node';
+import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
+import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
+
+const sdk = new NodeSDK({
+    traceExporter: new OTLPTraceExporter({
+        url: `${process.env.OTEL_EXPORTER_OTLP_ENDPOINT}/v1/traces`,
+    }),
+    instrumentations: [getNodeAutoInstrumentations()],
+});
+
+console.log('🚀 OpenTelemetry SDK initialized');
+console.log(`📤 Exporting to: ${process.env.OTEL_EXPORTER_OTLP_ENDPOINT}`);
+
+sdk.start();
+
+console.log('✅ OpenTelemetry SDK started');
+
 async function bootstrap() {
     const app = await NestFactory.create(AppModule);
 
