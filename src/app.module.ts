@@ -8,6 +8,8 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { BullModule } from '@nestjs/bullmq';
+import { SQSClient } from '@aws-sdk/client-sqs';
+import { QueuesModule } from './common/queues/queues.module';
 
 @Module({
     imports: [
@@ -40,7 +42,6 @@ import { BullModule } from '@nestjs/bullmq';
                 },
                 // Configura Dead Letter Queue
                 defaultJobOptions: {
-                    // Configura Dead Letter Queue
                     backoff: {
                         type: 'fixed',
                         delay: 5000,
@@ -49,6 +50,7 @@ import { BullModule } from '@nestjs/bullmq';
             })
         }),
         NotificationsModule,
+        QueuesModule
     ],
     providers: [
         {
@@ -56,8 +58,9 @@ import { BullModule } from '@nestjs/bullmq';
             useClass: AllExceptionsFilter,
         },
     ],
+    exports: [QueuesModule]
 })
-export class AppModule implements OnModuleInit { 
+export class AppModule implements OnModuleInit {
     constructor(private dataSource: DataSource) { }
 
     onModuleInit() {

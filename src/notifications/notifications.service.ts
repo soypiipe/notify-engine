@@ -1,27 +1,24 @@
-import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
-
+import { BadRequestException, Inject, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-
 import { CreateNotificationDto } from './dto/create-notification.dto';
 import { Notification } from './entities/notification.entity';
 import { InjectQueue } from '@nestjs/bullmq';
-import { Queue } from 'bullmq';
+import * as Bullmq from 'bullmq';
 import { SpanStatusCode, trace } from '@opentelemetry/api';
-import { BullMQQueueAdapter } from 'src/common/queues/bull-mqqueue-adapter';
+import { IQueue } from 'src/common/queues/interfaces/queue.interface';
 
 @Injectable()
-export class NotificationsService{
+export class NotificationsService {
     private readonly logger = new Logger(NotificationsService.name);
     private readonly tracer = trace.getTracer('notify-engine');
-
 
     constructor(
         @InjectRepository(Notification)
         private readonly notificationRepository: Repository<Notification>,
-        @InjectQueue('notifications') private readonly notificationQueue: Queue,
-        private readonly queue: BullMQQueueAdapter
-    ){}
+        @Inject('QUEUE_ADAPTER') private readonly queue: IQueue,
+        @Optional() @InjectQueue('notifications') private readonly notificationQueue?: Bullmq.Queue,
+    ) {}
 
     async create(createNotificationDto: CreateNotificationDto): Promise<Notification> {
         const span = this.tracer.startSpan('notification.create');
@@ -32,7 +29,7 @@ export class NotificationsService{
                 subject: createNotificationDto.subject,
                 body: createNotificationDto.body,
                 channel: createNotificationDto.channel || 'email',
-                status: 'pending'
+                status: 'pending',
             });
 
             const saved = await this.notificationRepository.save(notification);
@@ -44,10 +41,7 @@ export class NotificationsService{
 
             return saved;
         } catch (error: any) {
-            span.setStatus({
-                code: SpanStatusCode.ERROR,
-                message: error.message,
-            });
+            span.setStatus({ code: SpanStatusCode.ERROR, message: error.message });
             span.recordException(error);
             throw error;
         } finally {
@@ -56,42 +50,47 @@ export class NotificationsService{
     }
 
     async findOne(id: string): Promise<Notification> {
-        const notification = await this.notificationRepository.findOne({ where: {id}  });
-        if(!notification) {
-            throw new NotFoundException(`Notification with ID ${id} not found`)
+        const notification = await this.notificationRepository.findOne({ where: { id } });
+        if (!notification) {
+            throw new NotFoundException(`Notification with ID ${id} not found`);
         }
-
-        return notification
+        return notification;
     }
 
     async findAll(): Promise<Notification[]> {
         return await this.notificationRepository.find();
     }
 
-    async updateStatus(id: string, status: 'sent' | 'failed'){
-        await this.notificationRepository.update(id, { status })
+    async updateStatus(id: string, status: 'sent' | 'failed') {
+        await this.notificationRepository.update(id, { status });
     }
 
     async getDLQJobs() {
-        const dlqJobs = await this.notificationQueue.getFailed();
+        if (!this.notificationQueue) {
+            throw new BadRequestException('DLQ management is only available with the BullMQ provider');
+        }
 
-        const dlqJobsData = dlqJobs.map(job => ({
-            jobId: job.id,
-            notificationId: job.data?.id,
-            recipient: job.data?.recipient,
-            attempts: job.attemptsMade,
-            maxAttempts: job.opts.attempts,
-            failedReason: job.failedReason,
-            createdAt: new Date(job.timestamp),
-        }));
+        const dlqJobs = await this.notificationQueue.getFailed();
 
         return {
             totalFailed: dlqJobs.length,
-            jobs: dlqJobsData,
+            jobs: dlqJobs.map(job => ({
+                jobId: job.id,
+                notificationId: job.data?.id,
+                recipient: job.data?.recipient,
+                attempts: job.attemptsMade,
+                maxAttempts: job.opts.attempts,
+                failedReason: job.failedReason,
+                createdAt: new Date(job.timestamp),
+            })),
         };
     }
 
     async retryDLQJob(jobId: string) {
+        if (!this.notificationQueue) {
+            throw new BadRequestException('DLQ management is only available with the BullMQ provider');
+        }
+
         const job = await this.notificationQueue.getJob(jobId);
 
         if (!job) {
@@ -101,20 +100,18 @@ export class NotificationsService{
         const status = await job.getState();
         if (status !== 'failed') {
             throw new BadRequestException(
-                `Job ${jobId} cannot be retried because it is in state: ${status}`
+                `Job ${jobId} cannot be retried because it is in state: ${status}`,
             );
         }
 
-        const notificationId = job.data?.id;
-
         await job.retry();
 
-        this.logger.log(`Job ${job.id} retried for notification ${notificationId}`);
+        this.logger.log(`Job ${job.id} retried for notification ${job.data?.id}`);
 
         return {
             success: true,
             jobId: job.id,
-            notificationId,
+            notificationId: job.data?.id,
             message: `Job ${job.id} has been re-queued for processing`,
         };
     }

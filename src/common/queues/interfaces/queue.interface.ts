@@ -1,5 +1,3 @@
-export interface IQueue {
-    add(jobName: string, data: any) : Promise<{ id: string }>
-
-    process(): void
+export abstract class IQueue {
+    abstract add(jobName: string, data: any): Promise<{ id: string }>;
 }
