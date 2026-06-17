@@ -5,11 +5,15 @@ import { SQSClient } from '@aws-sdk/client-sqs';
 import { BullMQQueueAdapter } from './bull-mqqueue-adapter';
 import { SQSQueueAdapter } from './sqs-queue.adapter';
 import { IQueue } from './interfaces/queue.interface';
+import { SQSConsumerService } from './sqs-consumer.service';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Notification } from '../../notifications/entities/notification.entity';
 
 @Module({
     imports: [
         ConfigModule,
         BullModule.registerQueue({ name: 'notifications' }),
+        TypeOrmModule.forFeature([Notification]), 
     ],
     providers: [
         {
@@ -29,6 +33,7 @@ import { IQueue } from './interfaces/queue.interface';
         },
         BullMQQueueAdapter,
         SQSQueueAdapter,
+        SQSConsumerService,
         {
             provide: 'QUEUE_ADAPTER',
             inject: [ConfigService, BullMQQueueAdapter, SQSQueueAdapter],
