@@ -10,6 +10,7 @@ import { DataSource } from 'typeorm';
 import { BullModule } from '@nestjs/bullmq';
 import { SQSClient } from '@aws-sdk/client-sqs';
 import { QueuesModule } from './common/queues/queues.module';
+import { ChannelsModule } from './common/channels/channels.module';
 
 @Module({
     imports: [
@@ -28,7 +29,7 @@ import { QueuesModule } from './common/queues/queues.module';
                 password: configService.get<string>('DB_PASSWORD'),
                 database: configService.get<string>('DB_NAME'),
                 entities: [__dirname + '/**/*.entity{.ts,.js}'], // Carga automática de entidades
-                synchronize: configService.get<string>('NODE_ENV') === 'development', // ⚠️ ¡Ojo! Solo usa true en desarrollo. En producción usa migraciones.
+                synchronize: configService.get<string>('NODE_ENV') === 'development',
             })
         }),
         BullModule.forRootAsync({
@@ -50,7 +51,8 @@ import { QueuesModule } from './common/queues/queues.module';
             })
         }),
         NotificationsModule,
-        QueuesModule
+        QueuesModule,
+        ChannelsModule
     ],
     providers: [
         {
@@ -64,10 +66,8 @@ export class AppModule implements OnModuleInit {
     constructor(private dataSource: DataSource) { }
 
     onModuleInit() {
-        // Este método se ejecuta automáticamente cuando el módulo se inicializa
         if (this.dataSource.isInitialized) {
             console.log('✅ ¡Conexión a PostgreSQL establecida con éxito desde TypeORM!');
-            // Opcional: Muestra el nombre de la base de datos actual para estar seguro
             console.log(`BBDD Conectada: ${this.dataSource.options.database}`);
         } else {
             console.log('❌ La base de datos no está inicializada.');
