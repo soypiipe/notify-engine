@@ -1,10 +1,9 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { IChannel } from 'src/common/channels/interfaces/channel.interface';
+import type { RecipientType } from 'src/common/channels/interfaces/recipient-type';
 import { EmailChannel } from 'src/common/channels/providers/email-channel.provider';
 import { SlackChannel } from 'src/common/channels/providers/slack-channel.provider';
 import { SmsChannel } from 'src/common/channels/providers/sms-channel.provider';
-
-export type RecipientType = 'email' | 'phone' | 'slack';
 
 @Injectable()
 export class ClassifierService {
@@ -14,29 +13,15 @@ export class ClassifierService {
         private readonly smsChannel: SmsChannel
     ){}
 
-    resolveRecipientType(recipient: string): RecipientType {
-        const target = recipient.trim();
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        const phoneRegex = /^\+?[1-9]\d{1,14}$/;
-
-        const slackRegex = /^https:\/\/hooks\.slack\.com\/services\/[A-Z0-9]+\/[A-Z0-9]+\/[A-Za-z0-9]+$/;
-
-        if (emailRegex.test(target)) {
-            return 'email';
+    getChannelByType(channel: RecipientType){
+        if(!channel) {
+            throw new BadRequestException(`Invalid channel type: ${channel}`);
         }
 
-        if (phoneRegex.test(target)) {
-            return 'phone';
-        }
-
-        if (slackRegex.test(target)) {
-            return 'slack';
-        }
-
-        throw new BadRequestException(`Invalid format: ${recipient}`);
+        return this.getChannel(channel)
     }
 
-    getChannel(type: RecipientType): IChannel {
+    private getChannel(type: RecipientType): IChannel {
         switch (type) {
             case 'email':
                 return this.emailChannel;
@@ -44,6 +29,8 @@ export class ClassifierService {
                 return this.smsChannel;
             case 'slack':
                 return this.slackChannel;
+            default:
+                throw new BadRequestException(`Unsupported channel type: ${type}`);
         }
     }
 }

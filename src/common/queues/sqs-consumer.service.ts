@@ -1,9 +1,7 @@
 import { DeleteMessageCommand, ReceiveMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
-import { Notification } from "../../notifications/entities/notification.entity";
+import { NotificationsService } from "src/notifications/notifications.service";
 
 @Injectable()
 export class SQSConsumerService implements OnModuleInit {
@@ -13,7 +11,7 @@ export class SQSConsumerService implements OnModuleInit {
     constructor(
         @Inject('SQS_CLIENT') private readonly sqsClient: SQSClient,
         private readonly configService: ConfigService,
-        @InjectRepository(Notification) private readonly notificationRepository: Repository<Notification>,
+        private notificationsService: NotificationsService
     ) { }
 
     onModuleInit() {
@@ -97,18 +95,7 @@ export class SQSConsumerService implements OnModuleInit {
     }
 
     private async processMessage(notificationId: string): Promise<void> {
-        try {
-            const result = await this.notificationRepository.update(
-                notificationId,
-                { status: 'sent' }
-            );
-
-            if (result.affected === 0) {
-                this.logger.warn(`Notification not found in database: ${notificationId}`);
-            }
-        } catch (error: any) {
-            throw new Error(`Failed to update status in database: ${error.message}`);
-        }
+        await this.notificationsService.processAndSend(notificationId);
     }
 
     private async deleteMessage(receiptHandle: string | undefined, queueUrl: string): Promise<void> {

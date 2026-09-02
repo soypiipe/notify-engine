@@ -5,22 +5,17 @@ import { SQSClient } from '@aws-sdk/client-sqs';
 import { BullMQQueueAdapter } from './bull-mqqueue-adapter';
 import { SQSQueueAdapter } from './sqs-queue.adapter';
 import { IQueue } from './interfaces/queue.interface';
-import { SQSConsumerService } from './sqs-consumer.service';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { Notification } from '../../notifications/entities/notification.entity';
 
 @Module({
     imports: [
         ConfigModule,
         BullModule.registerQueue({ name: 'notifications' }),
-        TypeOrmModule.forFeature([Notification]), 
     ],
     providers: [
         {
             provide: 'SQS_CLIENT',
             inject: [ConfigService],
             useFactory: (configService: ConfigService) => {
-                if (configService.get<string>('QUEUE_PROVIDER') !== 'sqs') return null;
                 return new SQSClient({
                     region: configService.get<string>('AWS_REGION') || '',
                     credentials: {
@@ -33,7 +28,6 @@ import { Notification } from '../../notifications/entities/notification.entity';
         },
         BullMQQueueAdapter,
         SQSQueueAdapter,
-        SQSConsumerService,
         {
             provide: 'QUEUE_ADAPTER',
             inject: [ConfigService, BullMQQueueAdapter, SQSQueueAdapter],
@@ -46,6 +40,6 @@ import { Notification } from '../../notifications/entities/notification.entity';
             },
         },
     ],
-    exports: ['QUEUE_ADAPTER', BullModule],
+    exports: ['SQS_CLIENT', 'QUEUE_ADAPTER', BullModule],
 })
-export class QueuesModule {}
+export class QueuesModule { }

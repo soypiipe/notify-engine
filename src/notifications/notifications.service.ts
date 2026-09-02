@@ -7,6 +7,7 @@ import { InjectQueue } from '@nestjs/bullmq';
 import * as Bullmq from 'bullmq';
 import { SpanStatusCode, trace } from '@opentelemetry/api';
 import { IQueue } from 'src/common/queues/interfaces/queue.interface';
+import { ClassifierService } from './classifier.service';
 
 @Injectable()
 export class NotificationsService {
@@ -17,6 +18,7 @@ export class NotificationsService {
         @InjectRepository(Notification)
         private readonly notificationRepository: Repository<Notification>,
         @Inject('QUEUE_ADAPTER') private readonly queue: IQueue,
+        private readonly classifierService: ClassifierService,
         @Optional() @InjectQueue('notifications') private readonly notificationQueue?: Bullmq.Queue,
     ) {}
 
@@ -61,8 +63,46 @@ export class NotificationsService {
         return await this.notificationRepository.find();
     }
 
-    async updateStatus(id: string, status: 'sent' | 'failed') {
-        await this.notificationRepository.update(id, { status });
+    async updateStatus(id: string, status: 'sent' | 'failed', externalMessageId?: string) {
+        await this.notificationRepository.update(id, {
+            status,
+            ...(externalMessageId && { externalMessageId }),
+        });
+    }
+
+    async processAndSend(id: string){
+        const span = this.tracer.startSpan('notification.process');
+        try {
+            const notification = await this.findOne(id);
+            const channel = this.classifierService.getChannelByType(notification.channel);
+
+            const result = await channel.send(
+                notification.recipient, 
+                notification.subject, 
+                notification.body);
+            
+            if (!result.success) {
+                throw new Error(result.error || 'Unknown channel error');
+            }
+
+            await this.updateStatus(id, 'sent', result.externalId);
+
+            this.logger.log(`Notification ${id} sent successfully via ${notification.channel}`);
+
+            return { status: 'sent', externalId: result.externalId };
+
+
+        } catch (error: any) {
+            span.setStatus({
+                code: SpanStatusCode.ERROR,
+                message: error.message,
+            });
+            span.recordException(error);
+            throw error; // BullMQ maneja el reintento
+        } finally {
+            span.end();
+        }
+        
     }
 
     async getDLQJobs() {

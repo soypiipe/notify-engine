@@ -1,4 +1,5 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import type { RecipientType } from 'src/common/channels/interfaces/recipient-type';
 
 @Entity('notifications')
 export class Notification {
@@ -28,7 +29,7 @@ export class Notification {
         length: 20,
         default: 'email',
     })
-    channel!: string;
+    channel!: RecipientType;
 
     @Index()
     @Column({
@@ -37,6 +38,9 @@ export class Notification {
         default: 'pending',
     })
     status!: 'pending' | 'sent' | 'failed';
+
+    @Column({ nullable: true })
+    externalMessageId?: string;
 
     @Index()
     @CreateDateColumn()

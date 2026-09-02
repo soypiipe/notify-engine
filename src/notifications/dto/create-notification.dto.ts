@@ -1,13 +1,16 @@
-import { IsEmail, IsString, IsNotEmpty, IsOptional, MinLength, MaxLength } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, MinLength, MaxLength, IsIn, Validate } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+
+import { IsValidRecipientFormatConstraint } from './validators/recipient-format.validator';
+import type { RecipientType } from 'src/common/channels/interfaces/recipient-type';
 
 export class CreateNotificationDto {
     @ApiProperty({
-        description: 'Recipient email address',
+        description: 'Recipient: email, phone number, or slack channel (#channel-name)',
         example: 'user@example.com',
     })
-    @IsEmail()
     @IsNotEmpty()
+    @Validate(IsValidRecipientFormatConstraint)
     recipient!: string;
 
     @ApiProperty({
@@ -37,5 +40,6 @@ export class CreateNotificationDto {
     })
     @IsOptional()
     @IsString()
-    channel?: string;
+    @IsIn(['email', 'phone', 'slack'])
+    channel?: RecipientType;
 }
