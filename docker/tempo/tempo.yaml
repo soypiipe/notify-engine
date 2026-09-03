@@ -1,0 +1,18 @@
+server:
+  http_listen_port: 3200
+  grpc_listen_port: 4317
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        http:
+          endpoint: 0.0.0.0:4318
+        grpc:
+          endpoint: 0.0.0.0:4319
+
+storage:
+  trace:
+    backend: local
+    local:
+      path: /tmp/tempo/traces

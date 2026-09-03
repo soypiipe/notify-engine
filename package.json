@@ -16,10 +16,10 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
-    "docker:up": "docker-compose up -d",
-    "docker:down": "docker-compose down",
-    "docker:logs": "docker-compose logs -f",
-    "docker:ps": "docker-compose ps"
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f",
+    "docker:ps": "docker compose ps"
   },
   "dependencies": {
     "@aws-sdk/client-sqs": "^3.1065.0",
@@ -32,10 +32,10 @@
     "@nestjs/swagger": "^11.4.4",
     "@nestjs/typeorm": "^11.0.2",
     "@opentelemetry/api": "^1.9.1",
-    "@opentelemetry/auto-instrumentations-node": "^0.77.0",
+    "@opentelemetry/auto-instrumentations-node": "^0.80.0",
     "@opentelemetry/exporter-trace-otlp-http": "^0.219.0",
     "@opentelemetry/resources": "^2.7.1",
-    "@opentelemetry/sdk-node": "^0.219.0",
+    "@opentelemetry/sdk-node": "^0.222.0",
     "@opentelemetry/sdk-trace-node": "^2.7.1",
     "@opentelemetry/semantic-conventions": "^1.41.1",
     "axios": "^1.18.0",
@@ -78,7 +78,7 @@
   },
   "overrides": {
     "multer": "2.2.0",
-    "js-yaml": "4.2.0"
+    "js-yaml": "4.3.2"
   },
   "jest": {
     "moduleFileExtensions": [
