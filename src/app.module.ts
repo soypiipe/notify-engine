@@ -1,6 +1,7 @@
 import { Module, OnModuleInit } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { APP_FILTER } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD } from '@nestjs/core';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { databaseConfig, awsConfig } from './common/config/database.config';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import { NotificationsModule } from './notifications/notifications.module';
@@ -18,6 +19,14 @@ import { ChannelsModule } from './common/channels/channels.module';
             isGlobal: true,
             load: [databaseConfig, awsConfig],
         }),
+        ThrottlerModule.forRoot([
+            {
+                // Límite por defecto (laxo), aplica a los endpoints GET.
+                name: 'default',
+                ttl: 60000,
+                limit: 60,
+            },
+        ]),
         TypeOrmModule.forRootAsync({
             imports: [ConfigModule],
             inject: [ConfigService],
@@ -41,13 +50,13 @@ import { ChannelsModule } from './common/channels/channels.module';
                     port: configService.get<number>('REDIS_PORT', 6379),
                     maxRetriesPerRequest: null,
                 },
-                // Configura Dead Letter Queue
-                defaultJobOptions: {
-                    backoff: {
-                        type: 'fixed',
-                        delay: 5000,
-                    },
-                },
+                // La política de reintentos (attempts + backoff) real vive en
+                // BullMQQueueAdapter.add(), que la pasa por job y siempre pisa
+                // cualquier defaultJobOptions puesto acá — así que no se declara
+                // uno acá para no sugerir un comportamiento que no aplica.
+                // BullMQ tampoco tiene una Dead Letter Queue nativa: los jobs
+                // fallidos que agotan sus intentos quedan en la lista de
+                // "failed" de la propia cola (ver NotificationsService.getDLQJobs).
             })
         }),
         NotificationsModule,
@@ -58,6 +67,10 @@ import { ChannelsModule } from './common/channels/channels.module';
         {
             provide: APP_FILTER,
             useClass: AllExceptionsFilter,
+        },
+        {
+            provide: APP_GUARD,
+            useClass: ThrottlerGuard,
         },
     ],
     exports: [QueuesModule]

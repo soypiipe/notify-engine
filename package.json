@@ -30,6 +30,7 @@
     "@nestjs/core": "^11.1.27",
     "@nestjs/platform-express": "^11.1.27",
     "@nestjs/swagger": "^11.4.4",
+    "@nestjs/throttler": "^6.7.0",
     "@nestjs/typeorm": "^11.0.2",
     "@opentelemetry/api": "^1.9.1",
     "@opentelemetry/auto-instrumentations-node": "^0.80.0",
@@ -38,10 +39,13 @@
     "@opentelemetry/sdk-node": "^0.222.0",
     "@opentelemetry/sdk-trace-node": "^2.7.1",
     "@opentelemetry/semantic-conventions": "^1.41.1",
+    "@slack/webhook": "^8.0.2",
     "axios": "^1.18.0",
     "bullmq": "^5.77.2",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
+    "dotenv": "^17.4.2",
+    "helmet": "^8.3.0",
     "pg": "^8.21.0",
     "reflect-metadata": "^0.2.2",
     "resend": "^6.14.0",
@@ -77,7 +81,7 @@
     "typescript-eslint": "^8.20.0"
   },
   "overrides": {
-    "multer": "2.2.0",
+    "multer": "2.3.0",
     "js-yaml": "4.3.2"
   },
   "jest": {
@@ -90,6 +94,9 @@
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
+    },
+    "moduleNameMapper": {
+      "^src/(.*)$": "<rootDir>/$1"
     },
     "collectCoverageFrom": [
       "**/*.(t|j)s"

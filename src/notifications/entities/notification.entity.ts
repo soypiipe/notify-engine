@@ -37,7 +37,7 @@ export class Notification {
         length: 10,
         default: 'pending',
     })
-    status!: 'pending' | 'sent' | 'failed';
+    status!: 'pending' | 'sending' | 'sent' | 'failed';
 
     @Column({ nullable: true })
     externalMessageId?: string;

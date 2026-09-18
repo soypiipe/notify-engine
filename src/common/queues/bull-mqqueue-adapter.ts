@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { IQueue } from './interfaces/queue.interface';
 import { InjectQueue } from '@nestjs/bullmq';
 import * as Bullmq from 'bullmq';
+import { MAX_ATTEMPTS } from 'src/common/constants/queue.constants';
 
 @Injectable()
 export class BullMQQueueAdapter extends IQueue {
@@ -13,7 +14,7 @@ export class BullMQQueueAdapter extends IQueue {
         const jobNotification = await this.notificationQueue.add(`${jobName}`, {
             id: data.id
         }, {
-            attempts: 3,
+            attempts: MAX_ATTEMPTS,
             backoff: {
                 type: 'exponential',
                 delay: 2000,

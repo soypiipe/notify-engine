@@ -2,6 +2,7 @@ import { OnWorkerEvent, Processor, WorkerHost } from "@nestjs/bullmq";
 import { Logger } from "@nestjs/common";
 import { Job } from "bullmq";
 import { NotificationsService } from "./notifications.service";
+import { MAX_ATTEMPTS } from "src/common/constants/queue.constants";
 @Processor('notifications')
 export class NotificationProcessor extends WorkerHost {
     private readonly logger = new Logger(NotificationProcessor.name);
@@ -31,17 +32,10 @@ export class NotificationProcessor extends WorkerHost {
     async onQueueFailed(job: Job, error: Error) {
         this.logger.error(`Job ${job.id} failed: ${error.message}`);
 
-        const maxAttempts = job.opts.attempts ?? 1;
+        const maxAttempts = job.opts.attempts ?? MAX_ATTEMPTS;
 
         if (job.attemptsMade >= maxAttempts) {
-            await this.notificationsService.updateStatus(job.data.id, 'failed');
-            this.logger.log(`Updated notification ${job.data.id} status to failed`);
-
-            this.alertGroup(job.data.id, job.data, error.message);
+            await this.notificationsService.markAsFailed(job.data.id, error.message);
         }
-    }
-
-    private alertGroup(jobId: string, data: any, razon: string) {
-        this.logger.log(`ALERT - Job ${jobId} failed: `, data, `Razon: ${razon}`);
     }
 }

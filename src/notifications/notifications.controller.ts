@@ -1,16 +1,21 @@
-import { Controller, Post, Get, Body, Param, HttpCode, HttpStatus, NotFoundException } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
+import { Controller, Post, Get, Body, Param, HttpCode, HttpStatus, NotFoundException, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiSecurity } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { NotificationsService } from './notifications.service';
 import { CreateNotificationDto } from './dto/create-notification.dto';
 import { Notification } from './entities/notification.entity';
+import { ApiKeyGuard, API_KEY_HEADER } from 'src/common/guards/api-key.guard';
 
 @ApiTags('notifications')
+@ApiSecurity(API_KEY_HEADER)
+@UseGuards(ApiKeyGuard)
 @Controller('notifications')
 export class NotificationsController {
     constructor(private readonly notificationsService: NotificationsService) { }
 
     @Post()
     @HttpCode(HttpStatus.ACCEPTED)
+    @Throttle({ default: { limit: 10, ttl: 60000 } })
     @ApiOperation({
         summary: 'Create a new notification',
         description: 'Receives a notification and queues it for delivery',

@@ -4,12 +4,19 @@ import { BullModule } from '@nestjs/bullmq';
 import { SQSClient } from '@aws-sdk/client-sqs';
 import { BullMQQueueAdapter } from './bull-mqqueue-adapter';
 import { SQSQueueAdapter } from './sqs-queue.adapter';
-import { IQueue } from './interfaces/queue.interface';
+
+// Leído directamente de process.env (no vía ConfigService): esta decisión se
+// toma en tiempo de definición del módulo, antes de que ConfigModule termine
+// de inicializarse. main.ts hace `import 'dotenv/config'` como primer import
+// para garantizar que process.env ya esté poblado en este punto.
+const isSqsProvider = process.env.QUEUE_PROVIDER === 'sqs';
 
 @Module({
     imports: [
         ConfigModule,
-        BullModule.registerQueue({ name: 'notifications' }),
+        // Solo se registra la cola de BullMQ (y por lo tanto solo se abre
+        // conexión a Redis) cuando ese es el provider activo.
+        ...(isSqsProvider ? [] : [BullModule.registerQueue({ name: 'notifications' })]),
     ],
     providers: [
         {
@@ -26,20 +33,20 @@ import { IQueue } from './interfaces/queue.interface';
                 });
             },
         },
-        BullMQQueueAdapter,
-        SQSQueueAdapter,
+        // Solo se registra (y por lo tanto solo se instancia) el adapter del
+        // provider activo — el otro nunca se construye, así que su
+        // dependencia (p.ej. @InjectQueue en BullMQQueueAdapter) tampoco se
+        // resuelve cuando no aplica.
+        ...(isSqsProvider ? [SQSQueueAdapter] : [BullMQQueueAdapter]),
         {
             provide: 'QUEUE_ADAPTER',
-            inject: [ConfigService, BullMQQueueAdapter, SQSQueueAdapter],
-            useFactory: (
-                configService: ConfigService,
-                bullmq: BullMQQueueAdapter,
-                sqs: SQSQueueAdapter,
-            ): IQueue => {
-                return configService.get<string>('QUEUE_PROVIDER') === 'sqs' ? sqs : bullmq;
-            },
+            useExisting: isSqsProvider ? SQSQueueAdapter : BullMQQueueAdapter,
         },
     ],
-    exports: ['SQS_CLIENT', 'QUEUE_ADAPTER', BullModule],
+    exports: [
+        'SQS_CLIENT',
+        'QUEUE_ADAPTER',
+        ...(isSqsProvider ? [] : [BullModule]),
+    ],
 })
 export class QueuesModule { }
