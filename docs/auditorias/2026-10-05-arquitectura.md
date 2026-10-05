@@ -62,7 +62,7 @@ contenedor de Nest no levanta, también para quien solo quiere SQS y Slack.
 **Propuesta:** construir el cliente de forma tolerante, como Slack y SMS, o
 declarar explícitamente que Resend es obligatorio.
 
-### [MEDIA] Filas atascadas en `'sending'`, además del caso ya documentado (Fase 9)
+### [MEDIA] Filas atascadas en `'sending'`, además del caso ya documentado (hoy Fase 10; en el momento del informe, Fase 9)
 **Dónde:** `notifications.service.ts`: `getChannelByType` se llama después
 del claim (`:127`) y fuera del `try` interno que revierte a `'pending'`
 (`:129-144`).
@@ -75,7 +75,7 @@ el mensaje se borra.
 **Por qué importa:** pérdida silenciosa de notificaciones, sin
 `externalMessageId` ni alerta. `updatedAt` existe y serviría para detectarlo.
 **Propuesta:** resolver el canal antes del claim, o cubrirlo con el mismo
-revert; ampliar la Fase 9 a (a) y (b).
+revert; ampliar esa fase de reconciliación a (a) y (b).
 
 ### [MEDIA] Escritura en DB y encolado no son atómicos
 **Dónde:** `notifications.service.ts:39-41` (`save()` y luego `queue.add()`).

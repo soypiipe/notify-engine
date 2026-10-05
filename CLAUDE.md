@@ -59,9 +59,9 @@ Los generales están en `METODOLOGIA.md`. Aquí lo propio:
 
 - **No correr `npm run lint` (lleva `--fix`) sobre todo `src/`.** Un diff
   masivo de formato entierra el historial real. Se resuelve como tarea
-  propia, discutida antes (Fase 11).
+  propia, discutida antes (Fase 12).
 - No reformatear código que no es parte de la tarea en curso.
-- No reintroducir el test e2e de boilerplate. Un e2e real es la Fase 10.
+- No reintroducir el test e2e de boilerplate. Un e2e real es la Fase 11.
 - No reemplazar el claim atómico con `'sending'` por un check simple
   `if (status === 'sent')`: no cubre la carrera entre workers.
 - No guardar el recipient en el payload del job (`getDLQJobs` lo resuelve

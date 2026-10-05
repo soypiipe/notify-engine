@@ -33,7 +33,7 @@ da la razón, dice `[RAZÓN NO DOCUMENTADA]`.
 ## Una fila atascada en `'sending'` se deja atascada a propósito
 **Decisión:** si `channel.send()` tuvo éxito pero el update a `'sent'` falla, no se revierte a `'pending'`.
 **Alternativas descartadas:** revertir para permitir reintento.
-**Razón:** un reintento volvería a enviar un mensaje real. Se prefiere una inconsistencia visible a un duplicado silencioso. Consecuencia abierta: nada detecta esas filas todavía (Fase 9 del plan).
+**Razón:** un reintento volvería a enviar un mensaje real. Se prefiere una inconsistencia visible a un duplicado silencioso. Consecuencia abierta: nada detecta esas filas todavía (Fase 10 del plan).
 
 ## Simetría de fallo entre BullMQ y SQS
 **Decisión:** un solo `NotificationsService.markAsFailed()` y una constante compartida `MAX_ATTEMPTS = 3`. BullMQ usa `attemptsMade`; SQS usa `ApproximateReceiveCount`.
@@ -83,7 +83,7 @@ da la razón, dice `[RAZÓN NO DOCUMENTADA]`.
 ## `SmsChannel` falla de forma controlada sin credenciales
 **Decisión:** el constructor valida las tres variables `TWILIO_*`; si falta alguna loguea el error y `send()` devuelve `{ success: false, error: 'Twilio client not configured' }` en vez de lanzar.
 **Alternativas descartadas:** dejar el `throw new Error("Method not implemented.")` original, que rompía el job sin control.
-**Razón:** misma política que `EmailChannel` y `SlackChannel`: un canal mal configurado no debe tumbar el worker. Twilio no se ha probado con credenciales reales (Fase 10).
+**Razón:** misma política que `EmailChannel` y `SlackChannel`: un canal mal configurado no debe tumbar el worker. Twilio no se ha probado con credenciales reales (Fase 11).
 
 ## API key simple y rate limiting
 **Decisión:** un guard compara el header `x-api-key` con `API_KEY`, a nivel de clase en `NotificationsController`; `@nestjs/throttler` con un límite global y uno más estricto en `POST /notifications`.
@@ -93,7 +93,7 @@ da la razón, dice `[RAZÓN NO DOCUMENTADA]`.
 ## Se borra el test e2e de boilerplate y se escriben tests unitarios
 **Decisión:** se eliminaron `test/app.e2e-spec.ts` y `test/jest-e2e.json`; se agregaron specs de `ClassifierService`, `EmailChannel` y `processAndSend`. No se escribió spec de `SlackChannel`.
 **Alternativas descartadas:** reescribir el e2e; un spec de Slack.
-**Razón:** el e2e probaba un `GET /` que no existe, nunca tuvo script ni CI. Uno real exige Postgres, Redis o SQS vivos y la API key: más que una limpieza. `SlackChannel` repite el patrón de `EmailChannel`. Ambas cosas quedan pendientes en la Fase 10.
+**Razón:** el e2e probaba un `GET /` que no existe, nunca tuvo script ni CI. Uno real exige Postgres, Redis o SQS vivos y la API key: más que una limpieza. `SlackChannel` repite el patrón de `EmailChannel`. Ambas cosas quedan pendientes en la Fase 11.
 
 ## Mapeo de imports en jest
 **Decisión:** `"moduleNameMapper": {"^src/(.*)$": "<rootDir>/$1"}` en la configuración de jest.
@@ -102,7 +102,7 @@ da la razón, dice `[RAZÓN NO DOCUMENTADA]`.
 ## `synchronize` de TypeORM solo en desarrollo
 **Decisión:** el esquema lo crea TypeORM con `synchronize`, activo únicamente cuando `NODE_ENV=development` (`src/app.module.ts:41`). No hay migraciones.
 **Alternativas descartadas:** migraciones. `[RAZÓN NO DOCUMENTADA]` de por qué no se usan.
-**Razón:** `[RAZÓN NO DOCUMENTADA]`. El comportamiento está documentado en el README. Hay además una inconsistencia: `databaseConfig` (`src/common/config/database.config.ts:9`) declara `synchronize: NODE_ENV !== 'production'`, está cargada en `ConfigModule` y nada la consume; la autoauditoría la describe como "el mismo criterio" que `TypeOrmModule` y no lo es. Evaluarlo es tarea de la Fase 7.
+**Razón:** `[RAZÓN NO DOCUMENTADA]`. El comportamiento está documentado en el README. Hay además una inconsistencia: `databaseConfig` (`src/common/config/database.config.ts:9`) declara `synchronize: NODE_ENV !== 'production'`, está cargada en `ConfigModule` y nada la consume; la autoauditoría la describe como "el mismo criterio" que `TypeOrmModule` y no lo es. Decidirlo es tarea de la Fase 9.
 
 ## Elecciones de tecnología sin razón registrada
 - **NestJS:** el origen fue migrar un sistema .NET a NestJS; por qué NestJS y no otro framework: `[RAZÓN NO DOCUMENTADA]`.

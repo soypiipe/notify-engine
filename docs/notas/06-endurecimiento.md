@@ -29,7 +29,7 @@ vulnerabilidades de npm de `91518cc` (2026-06-18).
   trabajo de entonces. Ese mismo día se resolvieron las de producción con
   `npm audit fix` y el override de multer subido a 2.4.0 (`npm audit
   --omit=dev` → 0). Quedan 29 high en la cadena de jest 29, que solo se
-  arreglan con jest 30 (cambio mayor); es tarea de la Fase 7.
+  arreglan con jest 30 (cambio mayor); es tarea de la Fase 8.
 - **El ítem 7 estaba mal documentado:** decía que la sección de DLQ estaba
   en el README, pero el commit `a7c326d` (reescritura del README) la había
   eliminado. Se restauró desde `b8453f7` en la migración.
@@ -53,8 +53,8 @@ Lección: si hay notificaciones procesándose sin haber arrancado
 
 ## Otros hallazgos de la autoauditoría que siguen abiertos
 
-- Filas atascadas en `'sending'` sin detección ni alerta (Fase 9).
+- Filas atascadas en `'sending'` sin detección ni alerta (Fase 10).
 - `npm run lint` lleva `--fix` y reformatea todo `src/` (el código usa 4
   espacios y comillas simples; la config declara otra cosa), y reporta ~57
-  errores previos (Fase 11).
-- No se escribió spec de `SlackChannel` ni un e2e real (Fase 10).
+  errores previos (Fase 12).
+- No se escribió spec de `SlackChannel` ni un e2e real (Fase 11).

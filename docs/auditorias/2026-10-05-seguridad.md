@@ -77,7 +77,7 @@ con `synchronize: true` TypeORM puede alterar o borrar columnas en una base
 real. La config muerta también trae defaults de credenciales (`admin`/`test`,
 y `test`/`test` para AWS) que se usarían en silencio.
 **Propuesta:** borrar `databaseConfig` y `awsConfig` (también sin uso) o
-unificar en una sola fuente. Ya figura en el plan (Fase 7).
+unificar en una sola fuente. Ya figura en el plan (hoy Fase 9; en el momento del informe, Fase 7).
 
 ### [BAJA] 5. La comparación de la API key no es de tiempo constante
 **Dónde:** `src/common/guards/api-key.guard.ts:27` (`apiKey !== expectedApiKey`).

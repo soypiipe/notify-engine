@@ -26,13 +26,14 @@ SMS, reintentos, DLQ, observabilidad con OpenTelemetry.
 - Un endpoint para inspeccionar el DLQ de SQS: se inspecciona con
   herramientas de AWS.
 - Verificar SMS en vivo con Twilio: el canal está integrado pero no se ha
-  probado con credenciales reales (Fase 10).
+  probado con credenciales reales (Fase 11).
 - Otros canales (el `CLAUDE.md` viejo mencionaba WhatsApp como ejemplo de lo
   que la abstracción permitiría; no existe código para él).
 
-## Estado el 2026-10-05
+## Estado al migrar (2026-10-05)
 
 Flujo de punta a punta en ambos caminos de cola, tres canales, trazas en
 Tempo, 12 tests unitarios en verde. Las Fases 0 a 6 del plan están hechas;
-lo pendiente es la auditoría independiente, CI, reconciliación de
-`'sending'`, pruebas e2e y la deuda de lint.
+lo pendiente entonces era la auditoría independiente, CI, reconciliación de
+`'sending'`, pruebas e2e y la deuda de lint. El estado vigente está en
+`../PLAN.md`: ese mismo día se hizo la auditoría y se corrigió su hallazgo alto.

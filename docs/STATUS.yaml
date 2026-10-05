@@ -2,8 +2,8 @@
 proyecto: notify-engine
 area: 02-personal
 actualizado: 2026-10-05
-fase_actual: 7
-fase_nombre: Auditoría independiente
+fase_actual: 8
+fase_nombre: CI y hallazgos de seguridad prioritarios
 estado: en_progreso
 fases:
   - numero: 0
@@ -35,28 +35,28 @@ fases:
     estado: completada
     tareas: { total: 17, completadas: 17 }
   - numero: 7
-    nombre: Auditoría independiente
-    estado: en_progreso
-    tareas: { total: 7, completadas: 4 }
+    nombre: Auditoría independiente y corrección del bug de DLQ
+    estado: completada
+    tareas: { total: 5, completadas: 5 }
   - numero: 8
-    nombre: CI
+    nombre: CI y hallazgos de seguridad prioritarios
     estado: no_iniciada
-    tareas: { total: 2, completadas: 0 }
+    tareas: { total: 5, completadas: 0 }
   - numero: 9
+    nombre: Hallazgos medios y bajos de la auditoría independiente
+    estado: no_iniciada
+    tareas: { total: 15, completadas: 0 }
+  - numero: 10
     nombre: "Reconciliación de notificaciones atascadas en `'sending'`"
     estado: no_iniciada
     tareas: { total: 4, completadas: 0 }
-  - numero: 10
+  - numero: 11
     nombre: Pruebas
     estado: no_iniciada
     tareas: { total: 4, completadas: 0 }
-  - numero: 11
+  - numero: 12
     nombre: Deuda de lint
     estado: no_iniciada
     tareas: { total: 2, completadas: 0 }
-  - numero: 12
-    nombre: "Endurecimiento: hallazgos de la auditoría independiente"
-    estado: no_iniciada
-    tareas: { total: 16, completadas: 0 }
 tarea_actual: null
 bloqueos: []
