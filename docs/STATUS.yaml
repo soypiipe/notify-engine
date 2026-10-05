@@ -36,8 +36,8 @@ fases:
     tareas: { total: 17, completadas: 17 }
   - numero: 7
     nombre: Auditoría independiente
-    estado: no_iniciada
-    tareas: { total: 6, completadas: 1 }
+    estado: en_progreso
+    tareas: { total: 7, completadas: 4 }
   - numero: 8
     nombre: CI
     estado: no_iniciada
@@ -45,14 +45,18 @@ fases:
   - numero: 9
     nombre: "Reconciliación de notificaciones atascadas en `'sending'`"
     estado: no_iniciada
-    tareas: { total: 3, completadas: 0 }
+    tareas: { total: 4, completadas: 0 }
   - numero: 10
     nombre: Pruebas
     estado: no_iniciada
-    tareas: { total: 3, completadas: 0 }
+    tareas: { total: 4, completadas: 0 }
   - numero: 11
     nombre: Deuda de lint
     estado: no_iniciada
     tareas: { total: 2, completadas: 0 }
+  - numero: 12
+    nombre: "Endurecimiento: hallazgos de la auditoría independiente"
+    estado: no_iniciada
+    tareas: { total: 16, completadas: 0 }
 tarea_actual: null
 bloqueos: []

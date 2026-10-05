@@ -39,7 +39,7 @@ Rebanada: `POST /notifications` → PostgreSQL → cola BullMQ → worker → Re
 
 - [x] API de notificaciones con persistencia TypeORM
 - [x] Procesamiento asíncrono con BullMQ y reintentos con backoff exponencial
-- [x] Dead-letter por lista `failed` de BullMQ, con reintento manual (`GET /notifications/dlq/jobs`, `POST /notifications/dlq/:id/retry`)
+- [x] Dead-letter por lista `failed` de BullMQ y listado de jobs fallidos (`GET /notifications/dlq/jobs`). El reintento manual (`POST /notifications/dlq/:id/retry`) existe pero no reenvía: auditoría del 2026-10-05, ver Fase 7
 - [x] Envío de email con Resend (`EmailChannel`)
 
 ---
@@ -104,18 +104,19 @@ Fase 7. Los números son los ítems de esa autoauditoría.
 ---
 
 ## Fase 7 — Auditoría independiente
-**Estado:** no_iniciada
+**Estado:** en_progreso
 
 Ejecutada por el agente `auditor`, que no escribió el código. Es la
 prioridad 1. Los hallazgos vuelven a este plan como tareas nuevas. No
 aplica auditoría de UI: el proyecto no tiene frontend.
 
-- [ ] Auditoría de seguridad independiente
-- [ ] Auditoría de arquitectura independiente
-- [ ] Evaluar `synchronize`: se desconoce la razón de usar sincronización automática en vez de migraciones. Hoy solo se activa con `NODE_ENV=development` (`src/app.module.ts:41`), pero `databaseConfig` (`src/common/config/database.config.ts:9`) declara `synchronize` con otra condición (`!== 'production'`) y está cargada sin que nada la use
+- [x] Auditoría de seguridad independiente (`auditorias/2026-10-05-seguridad.md`: 0 altos, 3 medios, 5 bajos)
+- [x] Auditoría de arquitectura independiente (`auditorias/2026-10-05-arquitectura.md`: 1 alto, 5 medios, 4 bajos)
+- [ ] **[ALTA]** Corregir el reintento manual de DLQ, que es un no-op: tras agotar intentos la fila queda en `'failed'`, `retryDLQJob` solo llama a `job.retry()` y el claim de `processAndSend` solo acepta `'pending'`, así que no se reenvía nada y el job sale de la lista `failed`. Decide el dueño: que `retryDLQJob` pase `failed → pending` antes de reintentar, o que el claim acepte `'failed'` en un reintento manual. Registrar en `DECISIONES.md` y cubrir el flujo con un test
+- [ ] Decidir sobre `synchronize` y migraciones. Ambas auditorías confirmaron que `databaseConfig` y `awsConfig` (`src/common/config/database.config.ts`) son configuración muerta que contradice la efectiva (`src/app.module.ts:41`) y trae defaults de credenciales. Propuesta de los auditores: borrarlas o hacer que TypeORM y `SQSClient` las consuman (una sola fuente), y evaluar una migración inicial con `migrationsRun`. El motivo de usar `synchronize` en vez de migraciones sigue `[RAZÓN NO DOCUMENTADA]`: lo decide el dueño
 - [x] Resolver las vulnerabilidades de dependencias de producción que `npm audit` reportó el 2026-10-05 (36: `axios`, `@grpc/grpc-js`, `brace-expansion`, `fast-uri` y `multer` 2.2.0–2.3.0; advisories nuevas respecto a la autoauditoría, que cerró en 0). Hecho con `npm audit fix` sin `--force` y subiendo el override de `multer` de 2.3.0 a 2.4.0 (menor, no cambio de versión mayor). Resultado: `npm audit --omit=dev` → 0; `npx jest` (12 tests) y `npm run build` en verde. No se arrancó la app contra Postgres/Redis
 - [ ] Vulnerabilidades en dependencias de desarrollo: quedan 29 high, todas en la cadena de jest 29 (`braces` → `micromatch` → `jest-*`, más `@types/jest`). Arreglarlas exige subir a jest 30 (`npm audit fix --force`, cambio de versión mayor), por eso no se hizo. Solo afectan al entorno de desarrollo y a CI, no al código que corre en producción. Decidir cuándo subir jest, junto con la Fase 8 (CI)
-- [ ] Incorporar los hallazgos de la auditoría al plan y resolverlos
+- [x] Incorporar los hallazgos de la auditoría al plan (los de severidad media y baja, en la Fase 12)
 
 ---
 
@@ -137,6 +138,7 @@ falla, la fila queda en `'sending'` a propósito (para no reenviar) y nada
 la detecta ni alerta.
 
 - [ ] Decidir la estrategia (p. ej. job periódico que alerte sobre `'sending'` con más de N minutos y sin `externalMessageId`) y registrarla en `DECISIONES.md`
+- [ ] Cubrir también los otros dos caminos hacia `'sending'` que halló la auditoría: (a) `getChannelByType` se llama después del claim y fuera del `try` que revierte a `'pending'`; (b) el proceso muere entre el claim y el envío y el reintento se da por completado sin enviar (en SQS el mensaje se borra)
 - [ ] Implementar la detección y la alerta
 - [ ] Tests de la reconciliación
 
@@ -149,6 +151,7 @@ Prioridad 4.
 
 - [ ] Test e2e real del flujo completo (requiere Postgres y una cola vivos; evaluar service containers en CI)
 - [ ] Spec unitario de `SlackChannel`
+- [ ] Tests de los caminos críticos que la auditoría halló sin cobertura: simetría de fallo en el límite de `MAX_ATTEMPTS` (`NotificationProcessor.onQueueFailed` y `SQSConsumerService.handleFailedAttempt`), `markAsFailed` y `alertGroup`, `create`, `getDLQJobs` y `retryDLQJob`, `ApiKeyGuard`, `IsValidRecipientFormatConstraint`, `SmsChannel`, y el caso "envío OK pero `updateStatus` falla"
 - [ ] Probar `SmsChannel` con credenciales reales de Twilio. Depende de una cuenta de Twilio con saldo: es una dependencia externa conocida, no un descuido
 
 ---
@@ -164,6 +167,38 @@ bloque**: reformatear todo `src/` en un commit entierra el historial real.
 
 - [ ] Proponer cómo resolverlo sin un diff masivo (incluye si el script `lint` debe perder el `--fix`) y discutirlo antes de tocar código
 - [ ] Ejecutar lo acordado
+
+---
+
+## Fase 12 — Endurecimiento: hallazgos de la auditoría independiente
+**Estado:** no_iniciada
+
+Hallazgos de severidad media y baja de las auditorías del 2026-10-05
+(`auditorias/2026-10-05-seguridad.md` y `2026-10-05-arquitectura.md`). Se
+agregan como fase nueva porque la Fase 6 ya está cerrada. Los de severidad
+alta están en la Fase 7. El orden entre fases lo decide el dueño.
+
+Seguridad:
+
+- [ ] **[MEDIA]** El filtro global devuelve `exception.message` de errores que no son HTTP (`http-exception.filter.ts:30-31`): responder siempre `'Internal server error'` y agregar `ParseUUIDPipe` a `:id`. El 500 de `GET /notifications/abc` es una inferencia por lectura, no se ejecutó
+- [ ] **[MEDIA]** Sin `trust proxy`: detrás de un balanceador todos los clientes comparten el bucket del throttler. Configurarlo con el número de saltos o la subred exacta y documentar la topología de despliegue en `DECISIONES.md`
+- [ ] **[MEDIA]** `docker-compose.yml` publica Redis (sin `requirepass`), Postgres, Adminer, Floci, Tempo, Prometheus y Grafana en todas las interfaces: prefijar `127.0.0.1:`, activar `requirepass` por variable de entorno, fijar versiones en vez de `:latest` y documentar que es solo para desarrollo
+- [ ] **[BAJA]** `ApiKeyGuard`: comparación de tiempo constante (`crypto.timingSafeEqual` sobre hashes), mensaje 401 unificado y validación de `API_KEY` al arrancar
+- [ ] **[BAJA]** Una sola API key global y `findAll` sin paginar: documentar el modelo en `DECISIONES.md`, paginar con tope y considerar una key aparte para `dlq/*`
+- [ ] **[BAJA]** Enmascarar emails y teléfonos en el `reason` de `markAsFailed` y `alertGroup` (logs, alerta de Slack y spans OTel) y no loguear el recipient en el canal de Slack
+- [ ] **[BAJA]** Validación del DTO: `@IsString() @MaxLength(200)` en `recipient`, decidir y documentar la política de HTML en `body`, y corregir que Swagger dice `sms` cuando se acepta `phone`
+- [ ] **[BAJA]** Dockerfile: correr como usuario no root y agregar `.dockerignore`
+
+Arquitectura:
+
+- [ ] **[MEDIA]** Un canal de email sin `RESEND_API_KEY` tumba el arranque (`email-channel.provider.ts:12`), contra lo que dice `CLAUDE.md`: hacer el cliente tolerante como Slack y SMS, o declarar que Resend es obligatorio
+- [ ] **[MEDIA]** `create` no es atómico: si falla el encolado queda una fila `pending` huérfana y el cliente reintenta y duplica. Marcarla `failed` o registrar el riesgo en `DECISIONES.md`
+- [ ] **[BAJA]** Mover `SQSConsumerService` a `notifications/`, que no se registre ni cree `SQS_CLIENT` con valores vacíos en modo BullMQ, y tipar el payload de `IQueue.add` (hoy `any`; el contrato real es `{id: string}`)
+- [ ] **[BAJA]** Una única función `isSqsProvider()` en `queue.constants.ts` (hoy se lee de tres formas) y validar `QUEUE_PROVIDER` al arrancar
+- [ ] **[BAJA]** Quitar las dependencias sin uso (`uuid`, `@types/uuid`, `@nestjs/axios`, `axios`, `@opentelemetry/sdk-trace-node`, `@opentelemetry/resources`; confirmar con `npx depcheck`) y fijar `type: 'postgres'` en vez de `DB_PROVIDER`
+- [ ] **[BAJA]** Sacar la redacción de URLs de OTel de `main.ts` a su propio archivo con test, y que falte `OTEL_EXPORTER_OTLP_ENDPOINT` no genere `undefined/v1/traces`
+- [ ] **[BAJA]** Renombrar `bull-mqqueue-adapter.ts` (typo de nombre de archivo)
+- [ ] **[BAJA]** Robustez del consumer SQS: un id no uuid retrasa 5 s el resto del lote, y `SQS_QUEUE_URL` sin definir detiene el polling en silencio
 
 ---
 
