@@ -1,4 +1,4 @@
-import { BadRequestException, Inject, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
+import { BadRequestException, ConflictException, Inject, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { CreateNotificationDto } from './dto/create-notification.dto';
@@ -223,9 +223,40 @@ export class NotificationsService {
             );
         }
 
-        await job.retry();
+        const notificationId: string | undefined = job.data?.id;
+        if (!notificationId) {
+            throw new BadRequestException(`Job ${jobId} has no notification id in its data`);
+        }
 
-        this.logger.log(`Job ${job.id} retried for notification ${job.data?.id}`);
+        // Tras agotar los intentos la fila quedó en 'failed', y el claim de
+        // processAndSend solo acepta 'pending' (no se debilita: sigue siendo lo que
+        // da idempotencia a todos los caminos). Por eso el reintento manual primero
+        // reabre la fila con un UPDATE atómico y condicional; si no estaba en
+        // 'failed' (otro proceso la movió), no se toca el job.
+        const reopened = await this.notificationRepository.update(
+            { id: notificationId, status: 'failed' },
+            { status: 'pending' },
+        );
+        if (reopened.affected === 0) {
+            throw new ConflictException(
+                `Notification ${notificationId} is not in 'failed' state, so job ${jobId} was not retried`,
+            );
+        }
+
+        try {
+            // Sin resetear los contadores, el worker vuelve a fallar el job de
+            // inmediato porque attemptsMade ya llegó a MAX_ATTEMPTS.
+            await job.retry('failed', { resetAttemptsMade: true, resetAttemptsStarted: true });
+        } catch (error) {
+            // No dejar una fila 'pending' sin job que la procese.
+            await this.notificationRepository.update(
+                { id: notificationId, status: 'pending' },
+                { status: 'failed' },
+            );
+            throw error;
+        }
+
+        this.logger.log(`Job ${job.id} retried for notification ${notificationId}`);
 
         return {
             success: true,

@@ -55,6 +55,11 @@ da la razón, dice `[RAZÓN NO DOCUMENTADA]`.
 **Alternativas descartadas:** un script de aprovisionamiento.
 **Razón:** Floci no tiene volumen persistente en `docker-compose.yml`; habría que recrear las colas en cada reinicio del contenedor de todas formas. No hay endpoint de inspección del DLQ de SQS: se inspecciona con herramientas de AWS.
 
+## El reintento manual de DLQ reabre la fila `failed → pending` antes de reintentar el job
+**Decisión:** `retryDLQJob` hace un `UPDATE ... SET status='pending' WHERE id=? AND status='failed'`; si no afecta filas, responde 409 y no toca el job. Si afecta una, llama a `job.retry('failed', { resetAttemptsMade: true, resetAttemptsStarted: true })`; si eso falla, devuelve la fila a `'failed'` (`WHERE status='pending'`) y relanza el error. Primero la fila, después el job.
+**Alternativas descartadas:** que el claim de `processAndSend` acepte también `'failed'`.
+**Razón:** la auditoría independiente del 2026-10-05 halló que el reintento era un no-op: tras agotar intentos la fila queda en `'failed'`, el claim solo acepta `'pending'`, no se enviaba nada y el job salía de la lista de fallidos. Aceptar `'failed'` en el claim habría debilitado la idempotencia de todos los caminos (un reintento automático de BullMQ o una redelivery de SQS podría reenviar una notificación ya fallada), no solo la del reintento manual. Reabrir la fila en el único punto donde un humano decide reintentar deja el claim intacto. Los contadores se reinician porque, con `attemptsMade` ya en `MAX_ATTEMPTS`, el worker volvería a fallar el job de inmediato.
+
 ## `alertGroup` reutiliza `SlackChannel` y su fallo no revierte nada
 **Decisión:** las alertas de operación salen por el mismo webhook de Slack; van en su propio try/catch y solo loguean un warning si fallan.
 **Alternativas descartadas:** dejarlo como placeholder con un comentario.
