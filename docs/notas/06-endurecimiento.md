@@ -25,8 +25,11 @@ vulnerabilidades de npm de `91518cc` (2026-06-18).
   condicionado y la implementación de Twilio. Los 12 tests pasan.
 - **El ítem 1 se desactualizó:** la autoauditoría cerró `npm audit` en 0;
   hoy reporta 36 vulnerabilidades (3 moderate, 33 high), incluida una nueva
-  sobre multer 2.2.0–2.3.0. Es advisories posteriores, no una regresión del
-  trabajo de entonces. Va a la Fase 7.
+  sobre multer 2.2.0–2.3.0. Son advisories posteriores, no una regresión del
+  trabajo de entonces. Ese mismo día se resolvieron las de producción con
+  `npm audit fix` y el override de multer subido a 2.4.0 (`npm audit
+  --omit=dev` → 0). Quedan 29 high en la cadena de jest 29, que solo se
+  arreglan con jest 30 (cambio mayor); es tarea de la Fase 7.
 - **El ítem 7 estaba mal documentado:** decía que la sección de DLQ estaba
   en el README, pero el commit `a7c326d` (reescritura del README) la había
   eliminado. Se restauró desde `b8453f7` en la migración.

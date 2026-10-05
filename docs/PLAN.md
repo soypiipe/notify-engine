@@ -113,7 +113,8 @@ aplica auditoría de UI: el proyecto no tiene frontend.
 - [ ] Auditoría de seguridad independiente
 - [ ] Auditoría de arquitectura independiente
 - [ ] Evaluar `synchronize`: se desconoce la razón de usar sincronización automática en vez de migraciones. Hoy solo se activa con `NODE_ENV=development` (`src/app.module.ts:41`), pero `databaseConfig` (`src/common/config/database.config.ts:9`) declara `synchronize` con otra condición (`!== 'production'`) y está cargada sin que nada la use
-- [ ] Resolver las 36 vulnerabilidades que `npm audit` reporta hoy (3 moderate, 33 high: `axios`, `@grpc/grpc-js`, `brace-expansion`, `braces`, `fast-uri` y `multer` 2.2.0–2.3.0). Son advisories nuevas respecto a la autoauditoría, que cerró en 0
+- [x] Resolver las vulnerabilidades de dependencias de producción que `npm audit` reportó el 2026-10-05 (36: `axios`, `@grpc/grpc-js`, `brace-expansion`, `fast-uri` y `multer` 2.2.0–2.3.0; advisories nuevas respecto a la autoauditoría, que cerró en 0). Hecho con `npm audit fix` sin `--force` y subiendo el override de `multer` de 2.3.0 a 2.4.0 (menor, no cambio de versión mayor). Resultado: `npm audit --omit=dev` → 0; `npx jest` (12 tests) y `npm run build` en verde. No se arrancó la app contra Postgres/Redis
+- [ ] Vulnerabilidades en dependencias de desarrollo: quedan 29 high, todas en la cadena de jest 29 (`braces` → `micromatch` → `jest-*`, más `@types/jest`). Arreglarlas exige subir a jest 30 (`npm audit fix --force`, cambio de versión mayor), por eso no se hizo. Solo afectan al entorno de desarrollo y a CI, no al código que corre en producción. Decidir cuándo subir jest, junto con la Fase 8 (CI)
 - [ ] Incorporar los hallazgos de la auditoría al plan y resolverlos
 
 ---

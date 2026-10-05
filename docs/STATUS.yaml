@@ -37,7 +37,7 @@ fases:
   - numero: 7
     nombre: Auditoría independiente
     estado: no_iniciada
-    tareas: { total: 5, completadas: 0 }
+    tareas: { total: 6, completadas: 1 }
   - numero: 8
     nombre: CI
     estado: no_iniciada
