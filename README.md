@@ -62,7 +62,7 @@ Only **one** queue provider is active at runtime, controlled by `QUEUE_PROVIDER`
 - **Runtime:** NestJS 11, TypeScript, Node 24
 - **Persistence:** PostgreSQL 16 + TypeORM
 - **Queues:** BullMQ (Redis) and AWS SQS — swappable
-- **Channels:** Resend (email), Slack Incoming Webhooks, SMS (scaffolded, no live provider yet)
+- **Channels:** Resend (email), Slack Incoming Webhooks, SMS via Twilio (integrated, not yet verified with real credentials)
 - **Observability:** OpenTelemetry → Grafana Tempo, viewed in Grafana
 - **Infra (local):** Docker Compose, Floci (AWS SQS emulation)
 
@@ -107,6 +107,9 @@ OTEL_SERVICE_NAME=notify-engine
 # Channels
 RESEND_API_KEY=
 SLACK_WEBHOOK_URL=
+TWILIO_ACCOUNT_SID=
+TWILIO_AUTH_TOKEN=
+TWILIO_FROM_NUMBER=
 
 # API auth
 API_KEY=
@@ -123,13 +126,68 @@ npm install
 npm run start:dev
 ```
 
-Swagger docs: `http://localhost:3000/api/docs`
+Swagger docs: `http://localhost:3000/api/docs` when `NODE_ENV` is not `production` — it's disabled in prod because it has no auth of its own (unlike the `/notifications` endpoints) and exposes the full API shape.
 
 All endpoints require an `x-api-key` header matching `API_KEY`.
 
 ### Switching queue providers
 
 Set `QUEUE_PROVIDER=sqs` and restart — no other change is needed. With this provider, Redis is never contacted.
+
+## Queue providers: BullMQ vs SQS
+
+`QUEUE_PROVIDER` (env var) selects which queue backend is active — `bullmq`
+or `sqs`. Only the infrastructure of the active provider is initialized at
+boot: with `QUEUE_PROVIDER=sqs`, the app never registers a BullMQ queue or
+worker and never opens a connection to Redis (see `QueuesModule` and
+`NotificationsModule`). Both providers behave the same way when a send
+fails after exhausting retries: the notification is marked `status: 'failed'`
+in the database. The shared retry limit is `MAX_ATTEMPTS`
+(`src/common/constants/queue.constants.ts`, currently `3`):
+
+- **BullMQ**: `attempts: MAX_ATTEMPTS` on the job (`bull-mqqueue-adapter.ts`).
+  `NotificationProcessor.onQueueFailed` marks the notification failed once
+  `job.attemptsMade >= MAX_ATTEMPTS`.
+- **SQS**: the consumer requests the `ApproximateReceiveCount` message
+  attribute and marks the notification failed (and deletes the message)
+  once that count reaches `MAX_ATTEMPTS` (`sqs-consumer.service.ts`).
+
+### SQS: Dead Letter Queue (DLQ) and RedrivePolicy
+
+The app only talks to `SQS_QUEUE_URL` — it doesn't provision the queue. The
+consumer already marks a notification `failed` in our own DB once
+`ApproximateReceiveCount` reaches `MAX_ATTEMPTS`, independent of any AWS-side
+DLQ. Configuring a `RedrivePolicy` on the SQS side is still recommended so
+poison messages don't loop in the main queue for other reasons (e.g. the app
+being down and never getting the chance to receive/delete a message).
+
+To keep both symmetric, set the DLQ's `maxReceiveCount` to the same value as
+`MAX_ATTEMPTS` (`3`).
+
+**Local (Floci, `dev-aws` service in `docker-compose.yml`):**
+
+```bash
+# 1. Create the DLQ
+aws sqs create-queue --queue-name notifications-dlq --region us-east-1
+
+# 2. Get the DLQ's ARN
+DLQ_ARN=$(aws sqs get-queue-attributes \
+  --queue-url http://localhost:4566/000000000000/notifications-dlq \
+  --attribute-names QueueArn --region us-east-1 \
+  --query 'Attributes.QueueArn' --output text)
+
+# 3. Create (or update) the main queue with the RedrivePolicy pointing at the DLQ
+aws sqs create-queue --queue-name notifications --region us-east-1 \
+  --attributes "{\"RedrivePolicy\":\"{\\\"deadLetterTargetArn\\\":\\\"$DLQ_ARN\\\",\\\"maxReceiveCount\\\":\\\"3\\\"}\"}"
+```
+
+(`aws` here is assumed aliased with `--endpoint-url=http://localhost:4566`,
+as in this project's local setup — use `--endpoint-url` explicitly otherwise.
+Floci has no persistent volume in `docker-compose.yml`, so both queues need
+to be recreated every time the `dev-aws` container is recreated.)
+
+**Real AWS**: same two commands, without `--endpoint-url`, against a real
+queue and region. `maxReceiveCount` must still match `MAX_ATTEMPTS`.
 
 ## API
 
@@ -153,7 +211,8 @@ Valid `channel` values are exposed as a dropdown on the `channel` field in Swagg
 
 ## Known limitations
 
-- `SmsChannel` is a scaffolded strategy without a live Twilio integration yet — it returns a controlled `{ success: false }` rather than throwing, so it doesn't break the worker, but SMS delivery isn't functional today. This is a deliberate scope cut, not an oversight.
+- SMS runs through Twilio (`SmsChannel`) but has not been exercised with real credentials. Without the three `TWILIO_*` variables it logs a configuration error and returns `{ success: false, error: 'Twilio client not configured' }` instead of throwing, so it never breaks the worker.
+- The database schema is created by TypeORM `synchronize`, which is enabled only when `NODE_ENV=development` (`src/app.module.ts`). There are no migrations yet, so any other environment needs the schema created by hand.
 - SQS's dead-letter handling relies on a `RedrivePolicy` configured directly on the queue, whose `maxReceiveCount` must match `MAX_ATTEMPTS` (`src/common/constants/queue.constants.ts`), rather than an inspection endpoint like the BullMQ one — SQS DLQs are inspected via AWS tooling, not through this API.
 
 ## License

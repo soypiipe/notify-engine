@@ -1,0 +1,58 @@
+# Generado por sync_status.py desde PLAN.md — no editar a mano
+proyecto: notify-engine
+area: 02-personal
+actualizado: 2026-10-05
+fase_actual: 7
+fase_nombre: Auditoría independiente
+estado: en_progreso
+fases:
+  - numero: 0
+    nombre: Contexto
+    estado: completada
+    tareas: { total: 3, completadas: 3 }
+  - numero: 1
+    nombre: Diseño
+    estado: completada
+    tareas: { total: 3, completadas: 3 }
+  - numero: 2
+    nombre: "Construcción: notificación asíncrona por email con BullMQ"
+    estado: completada
+    tareas: { total: 4, completadas: 4 }
+  - numero: 3
+    nombre: "Construcción: cola intercambiable (BullMQ / SQS)"
+    estado: completada
+    tareas: { total: 4, completadas: 4 }
+  - numero: 4
+    nombre: "Construcción: multicanal"
+    estado: completada
+    tareas: { total: 3, completadas: 3 }
+  - numero: 5
+    nombre: "Construcción: observabilidad"
+    estado: completada
+    tareas: { total: 2, completadas: 2 }
+  - numero: 6
+    nombre: Endurecimiento (autoauditado)
+    estado: completada
+    tareas: { total: 17, completadas: 17 }
+  - numero: 7
+    nombre: Auditoría independiente
+    estado: no_iniciada
+    tareas: { total: 5, completadas: 0 }
+  - numero: 8
+    nombre: CI
+    estado: no_iniciada
+    tareas: { total: 2, completadas: 0 }
+  - numero: 9
+    nombre: "Reconciliación de notificaciones atascadas en `'sending'`"
+    estado: no_iniciada
+    tareas: { total: 3, completadas: 0 }
+  - numero: 10
+    nombre: Pruebas
+    estado: no_iniciada
+    tareas: { total: 3, completadas: 0 }
+  - numero: 11
+    nombre: Deuda de lint
+    estado: no_iniciada
+    tareas: { total: 2, completadas: 0 }
+tarea_actual: null
+bloqueos: []
