@@ -212,6 +212,7 @@ Valid `channel` values are exposed as a dropdown on the `channel` field in Swagg
 ## Known limitations
 
 - SMS runs through Twilio (`SmsChannel`) but has not been exercised with real credentials. Without the three `TWILIO_*` variables it logs a configuration error and returns `{ success: false, error: 'Twilio client not configured' }` instead of throwing, so it never breaks the worker.
+- Dependency audit: production dependencies have 0 known vulnerabilities (verified with `npm audit --omit=dev` on 2026-10-05). A plain `npm audit` still reports 29 high-severity findings; all of them are development-only, in the jest 29 chain (`braces` → `micromatch` → `jest-*`), and are pending an upgrade to jest 30, which is a major version bump.
 - The database schema is created by TypeORM `synchronize`, which is enabled only when `NODE_ENV=development` (`src/app.module.ts`). There are no migrations yet, so any other environment needs the schema created by hand.
 - SQS's dead-letter handling relies on a `RedrivePolicy` configured directly on the queue, whose `maxReceiveCount` must match `MAX_ATTEMPTS` (`src/common/constants/queue.constants.ts`), rather than an inspection endpoint like the BullMQ one — SQS DLQs are inspected via AWS tooling, not through this API.
 
